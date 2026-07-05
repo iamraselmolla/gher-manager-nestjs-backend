@@ -1,0 +1,13 @@
+{
+  "welcome": "Welcome to the Gher ERP backend",
+  "health.ok": "Server is running",
+  "health.db_ok": "Database connection is healthy",
+  "health.db_fail": "Database connection failed",
+  "health.redis_ok": "Redis connection is healthy",
+  "health.redis_fail": "Redis connection failed",
+  "errors.not_found": "The requested resource was not found",
+  "errors.unauthorized": "Unauthorized, please log in",
+  "errors.forbidden": "You do not have permission to perform this action",
+  "errors.validation": "The provided data is invalid",
+  "errors.internal": "An unexpected error occurred, please try again later"
+}

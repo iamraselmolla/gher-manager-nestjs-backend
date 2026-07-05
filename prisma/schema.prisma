@@ -1,0 +1,95 @@
+// ==========================================================================
+// GHER ERP — PRISMA SCHEMA
+// This file grows module-by-module. Only cross-cutting/shared pieces live
+// here during initial project setup. Each future module PR adds its own
+// models here (Project, Season, Fish, Feed, Medicine, Expense, Sales,
+// Investment/Partner, WaterQuality, Notification, Media, etc.)
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Shared enum: supported UI / notification languages across the whole
+// platform (Bangla default, English toggle). Used by User.preferredLanguage
+// and anywhere backend-generated text needs a language hint.
+enum Language {
+  bn
+  en
+}
+
+// Platform-level role. Project-scoped roles (Editor / Investor per project)
+// are modelled separately via ProjectMember once the Project module lands —
+// a user can be an Editor on Project A and an Investor on Project B at the
+// same time, so those roles cannot live on the User row itself.
+enum PlatformRole {
+  SUPER_ADMIN
+  USER
+}
+
+model User {
+  id       String @id @default(uuid())
+  // Login identifier. Bangladeshi mobile number, e.g. 01712345678.
+  mobileNumber String @unique
+  passwordHash String
+  name         String
+
+  platformRole PlatformRole @default(USER)
+  preferredLanguage Language @default(bn)
+
+  // True for investor accounts (and any admin-created account) until the
+  // user completes their first mandatory password change.
+  mustChangePassword Boolean @default(false)
+  isActive           Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+// One row per issued refresh token so we can support multi-device sessions,
+// rotation-on-use, and "logout everywhere". We store only a SHA-256 hash of
+// the token value, never the raw token.
+model RefreshToken {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String  @unique
+  userAgent String?
+  ipAddress String?
+  revoked   Boolean @default(false)
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// Forgot-password flow. Dispatch channel (SMS/email) is a later integration —
+// this table already supports it: generate token, hash+store it here, send
+// the raw token to the user out-of-band, verify against the hash on reset.
+model PasswordResetToken {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String   @unique
+  used      Boolean  @default(false)
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}

@@ -1,0 +1,28 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gher_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gher_user
+      POSTGRES_PASSWORD: gher_pass
+      POSTGRES_DB: gher_erp
+    ports:
+      - '5432:5432'
+    volumes:
+      - gher_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: gher_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - gher_redis_data:/data
+
+volumes:
+  gher_postgres_data:
+  gher_redis_data:
