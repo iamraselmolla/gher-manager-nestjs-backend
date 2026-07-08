@@ -1,5 +1,5 @@
 import { PrismaClient, PlatformRole, FishCategory } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import  bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -37,8 +37,8 @@ async function seedAdmin() {
     return;
   }
 
-  const mobileNumber = process.env.SEED_ADMIN_MOBILE ?? '01700000000';
-  const password = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeMe123';
+  const mobileNumber = process.env.SEED_ADMIN_MOBILE ?? '01944835365';
+  const password = process.env.SEED_ADMIN_PASSWORD ?? 'gher1234';
   const name = process.env.SEED_ADMIN_NAME ?? 'Super Admin';
 
   const passwordHash = await bcrypt.hash(password, 12);
