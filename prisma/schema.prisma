@@ -53,6 +53,31 @@ model User {
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
 
+  createdProjects  Project[]       @relation("ProjectCreatedBy")
+  projectMemberships ProjectMember[]
+  uploadedMedia    ProjectMedia[]
+  closedSeasons    Season[]        @relation("SeasonClosedBy")
+  createdFishSpecies FishSpecies[]
+  createdFishBatches FishBatch[]
+  recordedGrowthChecks GrowthCheck[]
+  createdFeedPurchases FeedPurchase[]
+  createdFeedUsages FeedUsage[]
+  createdVendorLedgerPayments VendorLedgerPayment[]
+  createdMedicines Medicine[]
+  createdMedicineStocks MedicineStock[]
+  createdTreatments Treatment[]
+  createdStockCheckpoints StockCheckpoint[]
+  createdExpenses Expense[]
+  createdSales Sale[]
+  partnerRecords Partner[]
+  createdPartnerInvestments PartnerInvestment[]
+  createdPartnerWithdrawals PartnerWithdrawal[]
+  createdWaterQualityChecks WaterQualityCheck[]
+  activityLogs ActivityLog[]
+  deviceTokens DeviceToken[]
+  notificationLogs NotificationLog[]
+  mediaAssets MediaAsset[]
+
   @@map("users")
 }
 
@@ -92,4 +117,891 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ==========================================================================
+// STEP 2 — PROJECT (GHER) MODULE
+// ==========================================================================
+
+enum LandUnit {
+  SHOTOK // শতক
+  ACRE // একর
+  BIGHA // বিঘা
+}
+
+enum ProjectStatus {
+  ACTIVE
+  CLOSED
+}
+
+// Project-scoped role. Platform SUPER_ADMIN bypasses this entirely (full
+// access to every project) — see ProjectRolesGuard. A given user has at
+// most one role per project (unique on [projectId, userId]); the same user
+// can hold different roles on different projects.
+enum ProjectRole {
+  EDITOR
+  INVESTOR
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model Project {
+  id      String @id @default(uuid())
+  name    String
+  address String?
+
+  // Map pin.
+  gpsLat Float?
+  gpsLng Float?
+
+  // Pond shape boundary — array of {lat, lng} vertices, rendered as a
+  // polygon overlay on the map. Stored as JSON since it's a variable-length
+  // ordered point list, not a relational structure.
+  boundaryPolygon Json?
+
+  landArea     Float?
+  landAreaUnit LandUnit?
+
+  // Lease info
+  leaseAmount        Decimal?  @db.Decimal(14, 2)
+  leaseDurationYears Int?
+  leaseStartDate     DateTime?
+  leaseEndDate       DateTime?
+  leaseAdvancePaid   Decimal?  @db.Decimal(14, 2)
+
+  landOwnerName    String?
+  landOwnerAddress String?
+
+  status ProjectStatus @default(ACTIVE)
+
+  createdByUserId String
+  createdBy       User   @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members ProjectMember[]
+  media   ProjectMedia[]
+  seasons Season[]
+  fishBatches FishBatch[]
+  vendors Vendor[]
+  feedPurchases FeedPurchase[]
+  feedUsages FeedUsage[]
+  medicineStocks MedicineStock[]
+  treatments Treatment[]
+  stockCheckpoints StockCheckpoint[]
+  expenses Expense[]
+  sales Sale[]
+  partners Partner[]
+  waterQualityChecks WaterQualityCheck[]
+  activityLogs ActivityLog[]
+  notificationLogs NotificationLog[]
+
+  @@index([status])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ProjectRole
+
+  // Soft-delete: revoking access preserves history for audit / historical
+  // profit-share accuracy instead of losing the fact someone was once a
+  // member (mirrors the Investor soft-delete requirement in the spec).
+  isActive  Boolean   @default(true)
+  addedAt   DateTime  @default(now())
+  removedAt DateTime?
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+model ProjectMedia {
+  id        String    @id @default(uuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Actual file bytes live in Supabase Storage (or any S3-compatible
+  // bucket) — the Media module (#18) owns upload/presign concerns; this
+  // table only ever stores the resulting URL + metadata.
+  url     String
+  type    MediaType
+  caption String?
+
+  uploadedByUserId String
+  uploadedBy       User   @relation(fields: [uploadedByUserId], references: [id])
+  uploadedAt       DateTime @default(now())
+
+  @@index([projectId])
+  @@map("project_media")
+}
+
+// ==========================================================================
+// STEP 3 — SEASON MODULE
+// ==========================================================================
+
+enum SeasonStatus {
+  ACTIVE
+  CLOSED
+}
+
+model Season {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Language-neutral identifier — the app renders "সিজন ২০২৫" / "Season 2025"
+  // from this number at display time rather than storing a Bangla string,
+  // per the bilingual data-neutrality principle. `label` is an optional
+  // human override (e.g. "Monsoon Batch") for when a year number alone
+  // isn't descriptive enough.
+  year  Int
+  label String?
+
+  status    SeasonStatus @default(ACTIVE)
+  startDate DateTime     @default(now())
+
+  // Mechanical close only (status flip + read-only lock) — this module does
+  // NOT compute profit/loss or partner distribution. That calculation is
+  // added on top of this same `close` action by the Season Closing module
+  // (#16), once Sales/Expense/Investment exist to compute it from.
+  closedAt       DateTime?
+  closedByUserId String?
+  closedBy       User?     @relation("SeasonClosedBy", fields: [closedByUserId], references: [id])
+
+  // Populated only by SeasonClosingService.confirmClose() (module #16) — null while active.
+  totalNetSales Decimal? @db.Decimal(14, 2)
+  totalExpenses Decimal? @db.Decimal(14, 2)
+  profitOrLoss  Decimal? @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fishBatches FishBatch[]
+  feedPurchases FeedPurchase[]
+  feedUsages FeedUsage[]
+  medicineStocks MedicineStock[]
+  treatments Treatment[]
+  stockCheckpoints StockCheckpoint[]
+  expenses Expense[]
+  sales Sale[]
+  partnerInvestments PartnerInvestment[]
+  partnerWithdrawals PartnerWithdrawal[]
+  waterQualityChecks WaterQualityCheck[]
+  activityLogs ActivityLog[]
+  partnerSettlements PartnerSettlement[]
+  // etc. — added by each future module as they land, all keyed off seasonId.
+
+  @@unique([projectId, year])
+  @@index([projectId, status])
+  @@map("seasons")
+}
+
+// ==========================================================================
+// STEP 4 — FISH / STOCK MODULE
+// ==========================================================================
+
+enum FishCategory {
+  SHRIMP // চিংড়ি
+  CARP // কার্পজাতীয়
+  OTHER
+}
+
+enum QuantityUnit {
+  PCS
+  KG
+}
+
+// DB-driven species catalog — never hardcode names in app code. Seeded with
+// the common Bangladeshi species from the spec; Editors can add a custom
+// entry inline while stocking (isCustom: true), Admin manages the catalog
+// directly. `nameBn`/`nameEn` are both stored (language-neutral by having
+// both, not by picking one as "the" name) so either UI language works
+// without a separate translation-key layer for this simple a list.
+model FishSpecies {
+  id       String       @id @default(uuid())
+  category FishCategory
+  nameBn   String
+  nameEn   String
+  isCustom Boolean      @default(false)
+
+  createdByUserId String?
+  createdBy       User?   @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  batches FishBatch[]
+  sales   Sale[]
+
+  @@map("fish_species")
+}
+
+// A single stocking event ("মাছ ছাড়া"). Age is deliberately NOT stored — it's
+// derived at read time from `stockedDate` so it's always correct without a
+// scheduled job to keep it in sync.
+model FishBatch {
+  id            String       @id @default(uuid())
+  projectId     String
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId      String
+  season        Season       @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  fishSpeciesId String
+  fishSpecies   FishSpecies  @relation(fields: [fishSpeciesId], references: [id])
+
+  quantity    Float
+  unit        QuantityUnit @default(PCS)
+  stockedDate DateTime
+  // Auto-flows into the Expense ledger (category "পোনা") once the Expense
+  // module (#9) exists — for now the cost lives directly on the batch;
+  // Expense will read/reference FishBatch rows for traceability instead of
+  // duplicating the amount.
+  cost   Decimal @db.Decimal(14, 2)
+  note   String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  growthChecks GrowthCheck[]
+
+  @@index([projectId, seasonId])
+  @@map("fish_batches")
+}
+
+// ==========================================================================
+// STEP 5 — GROWTH MODULE
+// ==========================================================================
+
+// A single weight-check reading for one batch on one date. `previousWeight`,
+// `growthAmount`, and `daysSinceLastCheck` are all computed server-side from
+// the batch's prior check (or its stocking date, for the very first check)
+// and stored at write time — this is deliberately a create/delete-only,
+// append-style time series (no update) so the trend graph never has to
+// reconcile edited history.
+model GrowthCheck {
+  id          String    @id @default(uuid())
+  fishBatchId String
+  fishBatch   FishBatch @relation(fields: [fishBatchId], references: [id], onDelete: Cascade)
+
+  checkDate      DateTime
+  currentWeight  Float // grams
+  previousWeight Float?
+  growthAmount   Float?
+  daysSinceLastCheck Int?
+
+  comment  String?
+  photoUrl String?
+
+  recordedByUserId String
+  recordedBy       User     @relation(fields: [recordedByUserId], references: [id])
+  createdAt        DateTime @default(now())
+
+  @@index([fishBatchId, checkDate])
+  @@map("growth_checks")
+}
+
+// ==========================================================================
+// STEP 6 — FEED MODULE + VENDOR LEDGER
+// ==========================================================================
+
+// Project-scoped (not season-scoped) — a shop relationship is ongoing, and
+// the running due/advance balance is meant to persist across seasons rather
+// than reset each cycle, per spec: "the Vendor Ledger handles money owed"
+// independently of season-scoped stock/expense tracking.
+model Vendor {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  address   String?
+
+  createdAt DateTime @default(now())
+
+  purchases      FeedPurchase[]
+  ledgerPayments VendorLedgerPayment[]
+
+  @@index([projectId])
+  @@map("vendors")
+}
+
+// One purchase line. Multiple can be logged per day (multiple feed types
+// arriving same day). `totalPrice` and `dueAmount` are computed server-side,
+// never trusted from the client. Only `paidAmount` becomes an Expense
+// (category "ফিড") once the Expense module exists — the unpaid portion stays
+// in the Vendor Ledger until settled, so it's never double-counted.
+model FeedPurchase {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId  String
+  season    Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  vendorId  String
+  vendor    Vendor  @relation(fields: [vendorId], references: [id])
+
+  feedName    String
+  bags        Float
+  pricePerBag Decimal @db.Decimal(12, 2)
+  totalPrice  Decimal @db.Decimal(14, 2) // bags * pricePerBag, computed server-side
+  paidAmount  Decimal @db.Decimal(14, 2)
+  // totalPrice - paidAmount. Positive = due to vendor, negative = advance/credit.
+  dueAmount   Decimal @db.Decimal(14, 2)
+
+  purchaseDate DateTime
+  note         String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId, seasonId])
+  @@index([vendorId])
+  @@map("feed_purchases")
+}
+
+// "বাকি পরিশোধ" — a due-clearance payment against a vendor's running balance,
+// independent of any single purchase.
+model VendorLedgerPayment {
+  id       String @id @default(uuid())
+  vendorId String
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  amount      Decimal  @db.Decimal(14, 2)
+  paymentDate DateTime
+  note        String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([vendorId])
+  @@map("vendor_ledger_payments")
+}
+
+// Usage entries deduct from remaining stock: remaining = Σpurchases.bags −
+// Σusages.bagsUsed, grouped by `feedName` within a project+season. The
+// Physical Stock Reconciliation module (#8) layers a checkpoint-based
+// correction on top of this same calculation.
+model FeedUsage {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId  String
+  season    Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  feedName  String
+  bagsUsed  Float
+  usageDate DateTime
+  note      String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([projectId, seasonId])
+  @@map("feed_usages")
+}
+
+// ==========================================================================
+// STEP 7 — MEDICINE MODULE + TREATMENT RECORDS
+// ==========================================================================
+
+enum MedicineCategory {
+  PROBIOTIC // প্রোবায়োটিক
+  MINERAL // মিনারেল
+  OTHER // অন্যান্য
+}
+
+// Same DB-driven-catalog pattern as FishSpecies — never hardcode names.
+model Medicine {
+  id       String           @id @default(uuid())
+  category MedicineCategory
+  nameBn   String
+  nameEn   String
+  isCustom Boolean          @default(false)
+
+  createdByUserId String?
+  createdBy       User?    @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  stockEntries MedicineStock[]
+  treatments   Treatment[]
+
+  @@map("medicines")
+}
+
+// Medicine is cash-only (no vendor credit, unlike Feed) — cost here auto-flows
+// into the Expense ledger (category "মেডিসিন", sub-tagged by MedicineCategory)
+// once the Expense module exists. Also participates in the same Physical
+// Stock Reconciliation pattern as Feed (module #8), hence the free-text
+// `unit` (probiotics are counted in packets/grams, minerals in kg — unlike
+// Feed's fixed "bags", there's no single unit that fits every medicine type).
+model MedicineStock {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId   String
+  season     Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+
+  quantity     Float
+  unit         String // e.g. "kg", "packet", "gram" — free text, varies by medicine type
+  cost         Decimal  @db.Decimal(14, 2)
+  purchaseDate DateTime
+  note         String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId, seasonId])
+  @@map("medicine_stocks")
+}
+
+// A treatment-given record. `nextFollowUpDate` is captured here; the actual
+// 2-days-before + due-date FCM reminder job is scheduled by the Notification
+// module (#14) — this table is what that module will scan.
+model Treatment {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId   String
+  season     Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+
+  treatmentDate    DateTime
+  quantityUsed     Float
+  unit             String
+  reason           String?
+  nextFollowUpDate DateTime?
+  // Dedup guards for the BullMQ reminder scanner — set once each reminder
+  // actually fires, so a daily scan never sends the same reminder twice.
+  leadReminderSentAt DateTime?
+  dueReminderSentAt  DateTime?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId, seasonId])
+  @@index([nextFollowUpDate])
+  @@map("treatments")
+}
+
+// ==========================================================================
+// STEP 8 — PHYSICAL STOCK RECONCILIATION (Feed + Medicine)
+// ==========================================================================
+
+enum StockItemType {
+  FEED
+  MEDICINE
+}
+
+// A periodic physical count checkpoint. `itemKey` is the feed name (FEED) or
+// medicine id (MEDICINE) being counted. Every field below except
+// `physicalQuantity`/`checkDate`/`note` is computed server-side at creation
+// time from the previous checkpoint (or season start, for the first one)
+// forward — this is what "back-calculates real consumption even if daily
+// usage wasn't logged in detail" means in practice. See StockReconciliationService
+// for the exact formulas (they mirror the spec's worked example verbatim).
+model StockCheckpoint {
+  id        String        @id @default(uuid())
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId  String
+  season    Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  itemType  StockItemType
+  itemKey   String
+  unit      String
+
+  checkDate        DateTime
+  physicalQuantity Float
+
+  previousPhysicalQuantity   Float
+  purchasedSinceLastCheck    Float
+  loggedUsageSinceLastCheck  Float
+  // "should have X" per the books: previous + purchased − logged usage
+  expectedRemainingQuantity  Float
+  // true consumption implied by the physical counts alone: previous + purchased − physical
+  actualConsumedQuantity     Float
+  // expectedRemaining − physical (== actualConsumed − loggedUsage). Positive
+  // means more was actually consumed than logged — wastage, theft, or
+  // unlogged usage worth investigating.
+  discrepancy                Float
+
+  note String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([projectId, seasonId, itemType, itemKey, checkDate])
+  @@map("stock_checkpoints")
+}
+
+// ==========================================================================
+// STEP 9 — EXPENSE MODULE (CENTRAL LEDGER)
+// ==========================================================================
+
+enum ExpenseCategory {
+  FEED // ফিড
+  MEDICINE // মেডিসিন
+  FISH_STOCKING // পোনা
+  LABOR // শ্রমিক
+  TRANSPORT // পরিবহন
+  MACHINERY // যন্ত্রপাতি
+  OTHER // অন্যান্য
+}
+
+// MANUAL = entered directly (typical for LABOR/TRANSPORT/MACHINERY/OTHER).
+// The others are auto-generated by their source module — FishBatchService,
+// FeedPurchaseService, and MedicineStockService each call
+// ExpenseService.upsertFromSource() at write time, so every stocking/
+// purchase event has exactly one traceable Expense row, never duplicated.
+enum ExpenseSourceType {
+  MANUAL
+  FISH_BATCH
+  FEED_PURCHASE
+  MEDICINE_STOCK
+  SALE
+}
+
+model Expense {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId  String
+  season    Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  category    ExpenseCategory
+  amount      Decimal         @db.Decimal(14, 2)
+  expenseDate DateTime
+  note        String?
+
+  // Traceability back to the record that generated this expense, if any.
+  sourceType ExpenseSourceType @default(MANUAL)
+  sourceId   String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // One expense per source record — upsertFromSource() relies on this to
+  // update-in-place instead of creating duplicates when a batch/purchase is
+  // edited later.
+  @@unique([sourceType, sourceId])
+  @@index([projectId, seasonId])
+  @@index([category])
+  @@index([expenseDate])
+  @@map("expenses")
+}
+
+// ==========================================================================
+// STEP 10 — SALES MODULE
+// ==========================================================================
+
+// No buyer/customer ledger by design (confirmed out of scope in the spec) —
+// just species, qty, gross amount, date, and same-day related cost.
+// `relatedCost` is NOT pushed into the Expense ledger (that would double-
+// count it, since Net Sales already subtracts it before the profit/loss
+// formula — Total Net Sales − Total Expenses — is applied at season close).
+model Sale {
+  id            String      @id @default(uuid())
+  projectId     String
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId      String
+  season        Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  fishSpeciesId String
+  fishSpecies   FishSpecies @relation(fields: [fishSpeciesId], references: [id])
+
+  quantityKg  Float
+  grossAmount Decimal @db.Decimal(14, 2)
+  // Same-day sale-related cost (transport/labor for that specific trip).
+  relatedCost Decimal @default(0) @db.Decimal(14, 2)
+  // grossAmount − relatedCost, computed server-side. This is the figure
+  // that flows into profit/loss reporting, per spec §5.7.
+  netAmount   Decimal @db.Decimal(14, 2)
+
+  saleDate DateTime
+  note     String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId, seasonId])
+  @@map("sales")
+}
+
+// ==========================================================================
+// STEP 11 — INVESTMENT & PARTNER MODULE
+// ==========================================================================
+
+enum InvestmentMethod {
+  CASH
+  BANK
+  MOBILE_BANKING
+  OTHER
+}
+
+// The equity/ledger side of an investor, separate from ProjectMember (which
+// governs RBAC/data visibility — see §4). Adding a Partner also creates (or
+// reuses) the linked User account and an active ProjectMember(INVESTOR) row
+// in the same operation; removing a Partner deactivates both together,
+// preserving all history via soft-delete rather than losing it.
+model Partner {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+
+  sharePercentage Decimal @db.Decimal(5, 2)
+
+  isActive  Boolean   @default(true)
+  removedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  investments PartnerInvestment[]
+  withdrawals PartnerWithdrawal[]
+  settlements PartnerSettlement[]
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@map("partners")
+}
+
+// The initial investment entered at Partner creation is recorded as the
+// first row here too — there's no separate "initial investment" field on
+// Partner itself, it's just investment #1.
+model PartnerInvestment {
+  id        String  @id @default(uuid())
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  seasonId  String
+  season    Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  amount         Decimal          @db.Decimal(14, 2)
+  investmentDate DateTime
+  method         InvestmentMethod @default(CASH)
+  note           String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([partnerId, seasonId])
+  @@map("partner_investments")
+}
+
+// Mid-season draws, tracked separately from year-end profit distribution —
+// the Season Closing module (#16) nets these against each partner's final
+// profit share: finalSettlement = shareOfProfit − totalWithdrawals.
+model PartnerWithdrawal {
+  id        String  @id @default(uuid())
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  seasonId  String
+  season    Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  amount         Decimal  @db.Decimal(14, 2)
+  withdrawalDate DateTime
+  note           String?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+
+  @@index([partnerId, seasonId])
+  @@map("partner_withdrawals")
+}
+
+// ==========================================================================
+// STEP 12 — WATER QUALITY MODULE
+// ==========================================================================
+
+model WaterQualityCheck {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId  String
+  season    Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  checkDate   DateTime
+  ph          Float?
+  temperature Float?
+  oxygen      Float?
+  ammonia     Float?
+  salinity    Float?
+  note        String?
+  // Array of image URLs (multiple photos per check) — DB stores URLs only,
+  // per the platform-wide Media convention; actual upload is the Media
+  // module's job (#18).
+  imageUrls   Json?
+
+  createdByUserId String
+  createdBy       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([projectId, seasonId, checkDate])
+  @@map("water_quality_checks")
+}
+
+// ==========================================================================
+// STEP 13 — ACTIVITY TIMELINE
+// ==========================================================================
+
+// Auto-logged feed of every action in a project, per spec §5.10. `actionKey`
+// is a stable machine key (e.g. "feed_purchase_added") — never a hardcoded
+// Bangla/English sentence, per the platform's data-neutrality principle;
+// the mobile/web app looks up the bilingual template for the key and
+// interpolates `summary` into it. `seasonId` is optional since a few
+// project-level actions (e.g. adding a project member) aren't tied to one.
+model ActivityLog {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  seasonId  String?
+  season    Season?  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  actionKey  String
+  entityType String
+  entityId   String
+  summary    Json?
+
+  actorUserId String
+  actor       User     @relation(fields: [actorUserId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, seasonId, createdAt])
+  @@map("activity_logs")
+}
+
+// ==========================================================================
+// STEP 14 — NOTIFICATION MODULE
+// ==========================================================================
+
+// A registered FCM device token for push delivery. A user can have several
+// (phone + tablet + web), and any given token belongs to exactly one user
+// at a time — re-registering the same token on a different account moves it.
+model DeviceToken {
+  id     String  @id @default(uuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token  String  @unique
+  platform String? // "ios" | "android" | "web" — free text, set by the client
+
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+// Single-row platform settings. `id` is pinned to "singleton" and every
+// read/write goes through an upsert on that fixed id, so there's never more
+// than one row to reconcile.
+model AdminSetting {
+  id                       String   @id @default("singleton")
+  followUpReminderLeadDays Int      @default(2)
+  updatedAt                DateTime @updatedAt
+
+  @@map("admin_settings")
+}
+
+// Delivery record for every push notification actually sent — lets Editors/
+// Investors see "what was I notified about" and gives us dedup/debugging
+// history independent of the ActivityLog (which records actions, not
+// deliveries).
+model NotificationLog {
+  id        String   @id @default(uuid())
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  title     String
+  body      String
+  data      Json?
+  actionKey String?
+
+  success      Boolean  @default(true)
+  errorMessage String?
+  sentAt       DateTime @default(now())
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("notification_logs")
+}
+
+// ==========================================================================
+// STEP 16 — SEASON CLOSING (profit/loss + partner distribution)
+// ==========================================================================
+
+// One row per active partner, snapshotted at the moment a season closes —
+// `sharePercentage` is captured here too (not just read live off Partner)
+// so a later share % change never rewrites history. finalSettlement =
+// shareOfProfitLoss − totalWithdrawals, per spec §5.13/§5.8.
+model PartnerSettlement {
+  id        String  @id @default(uuid())
+  seasonId  String
+  season    Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  sharePercentage   Decimal @db.Decimal(5, 2)
+  shareOfProfitLoss Decimal @db.Decimal(14, 2)
+  totalWithdrawals  Decimal @db.Decimal(14, 2)
+  finalSettlement   Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+
+  @@unique([seasonId, partnerId])
+  @@map("partner_settlements")
+}
+
+// ==========================================================================
+// STEP 18 — MEDIA MODULE
+// ==========================================================================
+
+// Generic upload record backing every photo/video field across the
+// platform (ProjectMedia.url, GrowthCheck.photoUrl, WaterQualityCheck.
+// imageUrls, future Treatment photos, ...). The DB only ever stores the
+// resulting URL + this metadata — actual bytes live in whichever
+// StorageProvider is configured (local disk for dev, or an S3-compatible
+// bucket e.g. Supabase Storage in production), per spec §5.14.
+model MediaAsset {
+  id        String  @id @default(uuid())
+  url       String
+  mimeType  String
+  sizeBytes Int
+
+  // Optional link back to whatever record this upload belongs to, for
+  // traceability/cleanup — e.g. ("GrowthCheck", growthCheckId).
+  linkedEntityType String?
+  linkedEntityId   String?
+
+  uploadedByUserId String
+  uploadedBy       User     @relation(fields: [uploadedByUserId], references: [id])
+  uploadedAt       DateTime @default(now())
+
+  @@index([linkedEntityType, linkedEntityId])
+  @@map("media_assets")
 }

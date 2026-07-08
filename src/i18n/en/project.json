@@ -1,0 +1,14 @@
+{
+  "name_required": "Project name is required",
+  "gps_lat_invalid": "Enter a valid latitude",
+  "gps_lng_invalid": "Enter a valid longitude",
+  "boundary_polygon_invalid": "The pond boundary must have at least 3 points",
+  "land_area_invalid": "Enter a valid land area",
+  "lease_amount_invalid": "Enter a valid lease amount",
+  "not_found": "Project not found",
+  "member_not_found": "Member not found",
+  "member_already_exists": "This user is already a member of this project",
+  "project_closed": "This project is closed and cannot be edited",
+  "media_type_required": "Media type (image/video) is required",
+  "media_url_required": "Media URL is required"
+}

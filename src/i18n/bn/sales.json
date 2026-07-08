@@ -1,0 +1,8 @@
+{
+  "species_required": "মাছের ধরন আবশ্যক",
+  "quantity_invalid": "সঠিক পরিমাণ (কেজি) দিন",
+  "gross_amount_invalid": "সঠিক বিক্রয় মূল্য দিন",
+  "related_cost_invalid": "সঠিক খরচ দিন",
+  "sale_date_required": "বিক্রয়ের তারিখ আবশ্যক",
+  "not_found": "বিক্রয় এন্ট্রিটি খুঁজে পাওয়া যায়নি"
+}

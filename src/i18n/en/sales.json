@@ -1,0 +1,8 @@
+{
+  "species_required": "Fish species is required",
+  "quantity_invalid": "Enter a valid quantity (kg)",
+  "gross_amount_invalid": "Enter a valid sale amount",
+  "related_cost_invalid": "Enter a valid cost",
+  "sale_date_required": "Sale date is required",
+  "not_found": "Sale entry not found"
+}

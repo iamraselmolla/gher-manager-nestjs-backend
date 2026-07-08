@@ -1,7 +1,18 @@
-import { PrismaClient, PlatformRole } from '@prisma/client';
+import { PrismaClient, PlatformRole, FishCategory } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
+const DEFAULT_FISH_SPECIES: { category: FishCategory; nameBn: string; nameEn: string }[] = [
+  { category: FishCategory.SHRIMP, nameBn: 'বাগদা', nameEn: 'Bagda (Black Tiger Shrimp)' },
+  { category: FishCategory.SHRIMP, nameBn: 'গলদা', nameEn: 'Golda (Freshwater Prawn)' },
+  { category: FishCategory.SHRIMP, nameBn: 'ভেনামী', nameEn: 'Vannamei' },
+  { category: FishCategory.SHRIMP, nameBn: 'হরিনা', nameEn: 'Horina' },
+  { category: FishCategory.CARP, nameBn: 'রুই', nameEn: 'Rui (Rohu)' },
+  { category: FishCategory.CARP, nameBn: 'কাতলা', nameEn: 'Catla' },
+  { category: FishCategory.CARP, nameBn: 'মৃগেল', nameEn: 'Mrigel' },
+  { category: FishCategory.CARP, nameBn: 'গ্রাস কার্প', nameEn: 'Grass Carp' },
+];
 
 /**
  * Bootstraps exactly one SUPER_ADMIN account so the very first login is
@@ -14,14 +25,14 @@ const prisma = new PrismaClient();
  *   SEED_ADMIN_PASSWORD (default: ChangeMe123 — CHANGE THIS IN PRODUCTION)
  *   SEED_ADMIN_NAME     (default: "Super Admin")
  */
-async function main() {
+async function seedAdmin() {
   const existingAdmin = await prisma.user.findFirst({
     where: { platformRole: PlatformRole.SUPER_ADMIN },
   });
 
   if (existingAdmin) {
     console.log(
-      `Seed skipped — a SUPER_ADMIN already exists (${existingAdmin.mobileNumber}).`,
+      `Admin seed skipped — a SUPER_ADMIN already exists (${existingAdmin.mobileNumber}).`,
     );
     return;
   }
@@ -45,6 +56,29 @@ async function main() {
   console.log('✅ Seeded SUPER_ADMIN account:');
   console.log(`   mobileNumber: ${admin.mobileNumber}`);
   console.log(`   password:     ${password}  (change this immediately after first login)`);
+}
+
+/** Seeds the default fish/shrimp species catalog. Safe to re-run — skips any name already present. */
+async function seedFishSpecies() {
+  let created = 0;
+  for (const species of DEFAULT_FISH_SPECIES) {
+    const existing = await prisma.fishSpecies.findFirst({
+      where: { nameEn: species.nameEn },
+    });
+    if (existing) continue;
+    await prisma.fishSpecies.create({ data: species });
+    created++;
+  }
+  console.log(
+    created > 0
+      ? `✅ Seeded ${created} fish species (${DEFAULT_FISH_SPECIES.length - created} already existed).`
+      : 'Fish species seed skipped — catalog already populated.',
+  );
+}
+
+async function main() {
+  await seedAdmin();
+  await seedFishSpecies();
 }
 
 main()

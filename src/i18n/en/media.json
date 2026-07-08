@@ -1,0 +1,6 @@
+{
+  "file_required": "Please upload a file",
+  "file_too_large": "File is too large, maximum {maxMb}MB allowed",
+  "invalid_file_type": "This file type is not supported",
+  "not_found": "File not found"
+}

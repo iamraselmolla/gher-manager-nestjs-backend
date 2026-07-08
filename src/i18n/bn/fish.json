@@ -1,0 +1,10 @@
+{
+  "species_name_required": "মাছের নাম আবশ্যক",
+  "species_category_required": "মাছের ধরন (ক্যাটাগরি) আবশ্যক",
+  "species_not_found": "মাছের প্রজাতিটি খুঁজে পাওয়া যায়নি",
+  "species_or_custom_required": "একটি প্রজাতি নির্বাচন করুন অথবা নতুন প্রজাতির নাম দিন",
+  "quantity_invalid": "সঠিক পরিমাণ দিন",
+  "cost_invalid": "সঠিক খরচ দিন",
+  "stocked_date_required": "মাছ ছাড়ার তারিখ আবশ্যক",
+  "batch_not_found": "স্টক এন্ট্রিটি খুঁজে পাওয়া যায়নি"
+}

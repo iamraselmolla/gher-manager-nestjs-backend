@@ -1,0 +1,13 @@
+{
+  "medicine_name_required": "মেডিসিনের নাম আবশ্যক",
+  "medicine_category_required": "মেডিসিনের ক্যাটাগরি আবশ্যক",
+  "medicine_not_found": "মেডিসিনটি খুঁজে পাওয়া যায়নি",
+  "medicine_or_custom_required": "একটি মেডিসিন নির্বাচন করুন অথবা নতুন নাম দিন",
+  "quantity_invalid": "সঠিক পরিমাণ দিন",
+  "unit_required": "একক (যেমন: কেজি, প্যাকেট) আবশ্যক",
+  "cost_invalid": "সঠিক খরচ দিন",
+  "purchase_date_required": "তারিখ আবশ্যক",
+  "stock_not_found": "মেডিসিন স্টক এন্ট্রিটি খুঁজে পাওয়া যায়নি",
+  "treatment_date_required": "ট্রিটমেন্টের তারিখ আবশ্যক",
+  "treatment_not_found": "ট্রিটমেন্ট এন্ট্রিটি খুঁজে পাওয়া যায়নি"
+}

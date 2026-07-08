@@ -1,0 +1,13 @@
+{
+  "vendor_name_required": "দোকানের নাম আবশ্যক",
+  "vendor_not_found": "দোকান/ভেন্ডর খুঁজে পাওয়া যায়নি",
+  "feed_name_required": "ফিডের নাম আবশ্যক",
+  "bags_invalid": "সঠিক বস্তার সংখ্যা দিন",
+  "price_per_bag_invalid": "সঠিক দাম দিন",
+  "paid_amount_invalid": "সঠিক জমার পরিমাণ দিন",
+  "purchase_date_required": "তারিখ আবশ্যক",
+  "purchase_not_found": "ফিড ক্রয় এন্ট্রিটি খুঁজে পাওয়া যায়নি",
+  "usage_not_found": "ফিড ব্যবহারের এন্ট্রিটি খুঁজে পাওয়া যায়নি",
+  "payment_amount_invalid": "সঠিক পরিমাণ দিন",
+  "payment_date_required": "তারিখ আবশ্যক"
+}

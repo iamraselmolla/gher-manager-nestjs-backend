@@ -1,0 +1,13 @@
+{
+  "vendor_name_required": "Shop/vendor name is required",
+  "vendor_not_found": "Vendor not found",
+  "feed_name_required": "Feed name is required",
+  "bags_invalid": "Enter a valid number of bags",
+  "price_per_bag_invalid": "Enter a valid price",
+  "paid_amount_invalid": "Enter a valid paid amount",
+  "purchase_date_required": "Date is required",
+  "purchase_not_found": "Feed purchase entry not found",
+  "usage_not_found": "Feed usage entry not found",
+  "payment_amount_invalid": "Enter a valid amount",
+  "payment_date_required": "Date is required"
+}

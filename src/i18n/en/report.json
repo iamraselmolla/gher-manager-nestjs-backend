@@ -1,0 +1,9 @@
+{
+  "invalid_report_type": "Invalid report type",
+  "expense_report_title": "Expense Report",
+  "fish_stock_report_title": "Fish/Stock Report",
+  "growth_report_title": "Growth Report",
+  "treatment_report_title": "Treatment Report",
+  "sales_report_title": "Sales Report",
+  "investment_report_title": "Investment & Withdrawal Report"
+}

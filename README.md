@@ -2,43 +2,13 @@
 
 Production-grade backend for the Aquaculture Gher (Pond) Management ERP platform.
 
-**Stack:** NestJS 10 + TypeScript · PostgreSQL (Prisma ORM) · Redis (cache + future BullMQ queues) · JWT auth · bilingual (Bangla/English) backend text via `nestjs-i18n`.
+**Stack:** NestJS 10 + TypeScript · PostgreSQL (Prisma ORM) · Redis (cache + BullMQ queues) · JWT auth · bilingual (Bangla/English) backend text via `nestjs-i18n` · FCM push notifications · pdfkit PDF export · pluggable local/S3 (Supabase-compatible) file storage.
 
-This backend is being built **module by module with your approval between each one**. See **[`PROJECT_STATE.md`](./PROJECT_STATE.md) for exactly what's done and what's next** — read that file first in any new chat.
-
----
-
-## ✅ Delivered so far
-
-- **Step 0 — Project Setup & Scaffolding**: security middleware, env validation, Prisma/Redis modules, bilingual i18n system, consistent API envelope, health check, `docker-compose.yml`
-- **Step 1 — Auth + Users + RBAC**: mobile+password login, JWT access/refresh rotation with reuse detection, platform-level RBAC guard, Admin-only user management, bilingual validation messages, first-admin seed script
-
-Full details, exact endpoints, and verification results: see `PROJECT_STATE.md`.
-
-## 🗺️ Full module roadmap (built one at a time, each with your sign-off)
-
-1. ~~Auth + Users + RBAC~~ ✅
-2. **Project (Gher) module** — project CRUD, GPS pin + boundary polygon, land info, lease info, media gallery references, `ProjectMember` (project-scoped RBAC)
-3. **Season module** — yearly cycles, one active season per project, read-only lock on close
-4. **Fish/Stock module** — DB-driven species, stocking batches, age calculation
-5. **Growth module** — per-species/per-batch weight checks, growth trend time series
-6. **Feed module + Vendor Ledger** — multi-entry daily purchases, due/advance tracking, usage, remaining stock
-7. **Medicine module + Treatment records** — cash-only auto-expense, follow-up reminders
-8. **Physical Stock Reconciliation** — checkpoint-based consumption back-calculation (feed + medicine)
-9. **Expense module** — central ledger, category-wise + timeline-wise views, source traceability
-10. **Sales module** — species/qty/amount/date + same-day cost → net sales
-11. **Investment & Partner module** — auto investor account creation, share % validation, mid-season withdrawals, investor ledger
-12. **Water Quality module** — PH/temp/oxygen/ammonia/salinity trend graphs
-13. **Activity Timeline** — auto-logged, attributed, project-wide feed
-14. **Notification module** — FCM push, Redis-backed reminder queue (BullMQ)
-15. **Report module** — daily/monthly/yearly reports, PDF export
-16. **Season Closing** — profit/loss calc, share distribution net of withdrawals, read-only lock
-17. **Dashboard module** — cached aggregates for mobile + web
-18. **Media module** — Supabase Storage / S3-compatible upload handling
+**All 18 modules from the master spec are complete.** See **[`PROJECT_STATE.md`](./PROJECT_STATE.md)** for the full module-by-module breakdown, architecture notes, and what's next (mobile/web apps) — read that file first in any new chat.
 
 ---
 
-## 🚀 Getting started on your machine
+## 🚀 Getting started
 
 ```bash
 # 1. Install dependencies
@@ -49,17 +19,19 @@ docker-compose up -d
 
 # 3. Configure environment
 cp .env.example .env
-# edit .env if you changed any docker-compose credentials/ports, and set
-# JWT_ACCESS_SECRET / JWT_REFRESH_SECRET to real random values
+# set real values for JWT_ACCESS_SECRET / JWT_REFRESH_SECRET at minimum;
+# FCM_* and STORAGE_* are optional until you wire up push notifications /
+# S3-compatible storage — sensible local defaults are already set
 
-# 4. Generate the Prisma client (downloads the query-engine binary —
-#    needs normal internet access, see note below)
+# 4. Generate the Prisma client (needs normal internet access — see
+#    PROJECT_STATE.md for why this specific step couldn't run in the
+#    sandbox this was built in)
 npx prisma generate
 
-# 5. Create the migration
-npx prisma migrate dev --name add_auth_users
+# 5. Create the database schema
+npx prisma migrate dev --name init
 
-# 6. Seed the first SUPER_ADMIN account (see prisma/seed.ts)
+# 6. Seed the first SUPER_ADMIN account + the fish species catalog
 npm run prisma:seed
 
 # 7. Run the dev server
@@ -74,55 +46,77 @@ curl -X POST http://localhost:4000/api/v1/auth/login \
 ```
 (or whatever `SEED_ADMIN_MOBILE`/`SEED_ADMIN_PASSWORD` you set in `.env`)
 
-### ⚠️ Note on `npx prisma generate`
-This project was built and compiled inside a sandboxed dev container whose network is restricted to package registries (npm, GitHub, etc.) — it cannot reach Prisma's binary-engine CDN (`binaries.prisma.sh`). Because of that, **`prisma generate` could not download the native query-engine binary in that sandbox**. `npm install` and TypeScript compilation of everything not touching Prisma-generated types were verified with zero errors; see `PROJECT_STATE.md` for the exact verification breakdown on this delivery. On your own machine, with normal internet access, `npx prisma generate` will work exactly as expected — this is purely a sandbox limitation, not a bug in the code.
-
-### Switching to Supabase later
-Just replace `DATABASE_URL` in `.env` with your Supabase Postgres connection string — nothing else changes.
+### Typical flow to get real data flowing
+1. Log in as the seeded Admin.
+2. `POST /projects` — create a Gher.
+3. `POST /projects/:id/seasons` — start season 1.
+4. `POST /projects/:id/partners` — add investors (auto-creates their login).
+5. `POST /projects/:id/seasons/:id/fish-batches` — stock fish (auto-creates an Expense).
+6. Everything else (feed, medicine, sales, water quality, reports, dashboard) follows the same `projects/:projectId/seasons/:seasonId/...` nesting pattern.
 
 ---
 
-## 📁 Project structure
+## Module map
+
+| # | Module | # | Module |
+|---|--------|---|--------|
+| 0 | Setup & scaffolding | 10 | Sales |
+| 1 | Auth + Users + RBAC | 11 | Investment & Partner |
+| 2 | Project (Gher) | 12 | Water Quality |
+| 3 | Season | 13 | Activity Timeline |
+| 4 | Fish/Stock | 14 | Notification (FCM + BullMQ) |
+| 5 | Growth | 15 | Report (+ PDF export) |
+| 6 | Feed + Vendor Ledger | 16 | Season Closing |
+| 7 | Medicine + Treatment | 17 | Dashboard |
+| 8 | Physical Stock Reconciliation | 18 | Media (local/S3 storage) |
+| 9 | Expense (central ledger) | | |
+
+Full detail on every module: **`PROJECT_STATE.md`**.
+
+---
+
+## Note on `npx prisma generate`
+
+This project was built and compiled inside a sandboxed dev container whose network is restricted to package registries — it cannot reach Prisma's binary-engine CDN (`binaries.prisma.sh`). Because of that, `prisma generate` could not download the native query-engine binary in that sandbox. `npm install` and TypeScript compilation of everything not touching Prisma-generated types were verified clean at every step; see `PROJECT_STATE.md` for the exact verification breakdown. On your own machine, with normal internet access, `npx prisma generate` works exactly as expected — this is purely a sandbox limitation, not a bug in the code.
+
+## Switching to Supabase later
+
+Replace `DATABASE_URL` in `.env` with your Supabase Postgres connection string — nothing else changes. For file storage, set `STORAGE_PROVIDER=s3` and point `STORAGE_ENDPOINT`/`STORAGE_ACCESS_KEY`/`STORAGE_SECRET_KEY`/`STORAGE_BUCKET` at your Supabase Storage project (it's S3-compatible) — again, no code changes.
+
+---
+
+## Project structure
 
 ```
 src/
   common/
     filters/            # global exception + i18n validation filters
-    interceptors/        # logging + response-transform interceptors
-    decorators/            # is-strong-password (shared across modules)
-    guards/                  # (project-scoped guards land with ProjectMember)
-    utils/                     # password hashing, secure token generation
-    constants/                   # BD mobile number regex, etc.
-  config/
-    app.config.ts       # typed config factory
-    env.validation.ts   # class-validator env schema (fail-fast on boot)
+    interceptors/         # logging + response-transform interceptors
+    decorators/              # is-strong-password, project-roles
+    guards/                    # ProjectRolesGuard — reused by nearly every module
+    utils/                       # password hashing, secure token generation
+    constants/                     # BD mobile number regex, etc.
+  config/                # typed config factory + fail-fast env validation
   i18n/
-    bn/ en/              # common.json + auth.json bilingual strings
-    i18n.config.ts
-  prisma/
-    prisma.module.ts
-    prisma.service.ts
-  redis/
-    redis.module.ts
-    redis.service.ts
+    bn/ en/              # one JSON file per module — all bilingual strings
+  prisma/                # PrismaModule/PrismaService (global)
+  redis/                 # RedisModule/RedisService (global) — caching + BullMQ
   modules/
-    health/              # GET /health
-    auth/                 # login, refresh, logout, change/forgot/reset password
-    users/                 # admin user management + language preference
-    # projects/, season/, fish/, growth/, feed/, vendor-ledger/, medicine/,
-    # treatment/, expense/, sales/, investment/, partner/, water-quality/,
-    # notification/, report/, dashboard/, media/  ← added one at a time
+    health/    auth/       users/      projects/   season/
+    fish/      growth/     feed/       medicine/   stock-reconciliation/
+    expense/   sales/      investment/ water-quality/
+    activity-log/  notification/  report/  season-closing/
+    dashboard/  media/
   app.module.ts
   main.ts
 prisma/
-  schema.prisma
-  seed.ts
+  schema.prisma          # all 18 modules' models, one section per step
+  seed.ts                # bootstraps SUPER_ADMIN + fish species catalog
 docker-compose.yml
 .env.example
-PROJECT_STATE.md         # ← continuity anchor, read this in new chats
+PROJECT_STATE.md         # continuity anchor, read this in new chats
 ```
 
 ---
 
-**Next step:** tell me to proceed and I'll build the **Project (Gher) module** next — or name a different module to start with instead.
-
+**Next step:** start a fresh chat, upload this zip, and say "build the React Native mobile app" (or the Next.js web app) — see `PROJECT_STATE.md` for why a fresh chat plus this zip matters for that step.

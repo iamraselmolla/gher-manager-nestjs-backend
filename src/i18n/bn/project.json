@@ -1,0 +1,14 @@
+{
+  "name_required": "প্রকল্পের নাম আবশ্যক",
+  "gps_lat_invalid": "সঠিক অক্ষাংশ (latitude) দিন",
+  "gps_lng_invalid": "সঠিক দ্রাঘিমাংশ (longitude) দিন",
+  "boundary_polygon_invalid": "পুকুরের সীমানা কমপক্ষে ৩টি পয়েন্ট দিয়ে তৈরি হতে হবে",
+  "land_area_invalid": "সঠিক জমির পরিমাণ দিন",
+  "lease_amount_invalid": "সঠিক লিজের পরিমাণ দিন",
+  "not_found": "প্রকল্পটি খুঁজে পাওয়া যায়নি",
+  "member_not_found": "সদস্য খুঁজে পাওয়া যায়নি",
+  "member_already_exists": "এই ব্যবহারকারী ইতিমধ্যে এই প্রকল্পের সদস্য",
+  "project_closed": "প্রকল্পটি বন্ধ করা হয়েছে, এটি সম্পাদনা করা যাবে না",
+  "media_type_required": "মিডিয়ার ধরন (ছবি/ভিডিও) আবশ্যক",
+  "media_url_required": "মিডিয়া URL আবশ্যক"
+}

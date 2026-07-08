@@ -1,0 +1,8 @@
+{
+  "item_type_required": "Item type (feed/medicine) is required",
+  "item_key_required": "Specify which item is being counted",
+  "physical_quantity_invalid": "Enter a valid quantity",
+  "check_date_required": "Check date is required",
+  "unit_required": "Unit is required",
+  "checkpoint_not_found": "Stock check entry not found"
+}

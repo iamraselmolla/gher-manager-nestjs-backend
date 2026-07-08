@@ -22,6 +22,21 @@ export interface AppConfig {
     ttl: number;
     limit: number;
   };
+  fcm: {
+    projectId?: string;
+    clientEmail?: string;
+    privateKey?: string;
+  };
+  storage: {
+    provider: 'local' | 's3';
+    bucket: string;
+    endpoint?: string;
+    region: string;
+    accessKey?: string;
+    secretKey?: string;
+    localDir: string;
+    localPublicBaseUrl: string;
+  };
 }
 
 export default (): { app: AppConfig } => ({
@@ -54,6 +69,24 @@ export default (): { app: AppConfig } => ({
     throttle: {
       ttl: parseInt(process.env.THROTTLE_TTL ?? '60', 10),
       limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10),
+    },
+    fcm: {
+      projectId: process.env.FCM_PROJECT_ID || undefined,
+      clientEmail: process.env.FCM_CLIENT_EMAIL || undefined,
+      // .env files typically escape newlines as \n — unescape them back to
+      // real newlines, which the PEM private key format requires.
+      privateKey: process.env.FCM_PRIVATE_KEY?.replace(/\\n/g, '\n') || undefined,
+    },
+    storage: {
+      provider: (process.env.STORAGE_PROVIDER as 'local' | 's3') ?? 'local',
+      bucket: process.env.STORAGE_BUCKET ?? 'gher-media',
+      endpoint: process.env.STORAGE_ENDPOINT || undefined,
+      region: process.env.STORAGE_REGION ?? 'auto',
+      accessKey: process.env.STORAGE_ACCESS_KEY || undefined,
+      secretKey: process.env.STORAGE_SECRET_KEY || undefined,
+      localDir: process.env.STORAGE_LOCAL_DIR ?? './uploads',
+      localPublicBaseUrl:
+        process.env.STORAGE_LOCAL_PUBLIC_BASE_URL ?? 'http://localhost:4000/api/v1/media/files',
     },
   },
 });

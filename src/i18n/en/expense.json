@@ -1,0 +1,7 @@
+{
+  "category_required": "Expense category is required",
+  "amount_invalid": "Enter a valid amount",
+  "expense_date_required": "Date is required",
+  "not_found": "Expense entry not found",
+  "cannot_edit_auto_generated": "This expense was auto-generated — edit it from its original entry instead"
+}

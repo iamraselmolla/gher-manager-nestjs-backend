@@ -13,6 +13,23 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { SeasonModule } from './modules/season/season.module';
+import { ExpenseModule } from './modules/expense/expense.module';
+import { FishModule } from './modules/fish/fish.module';
+import { GrowthModule } from './modules/growth/growth.module';
+import { FeedModule } from './modules/feed/feed.module';
+import { MedicineModule } from './modules/medicine/medicine.module';
+import { StockReconciliationModule } from './modules/stock-reconciliation/stock-reconciliation.module';
+import { SalesModule } from './modules/sales/sales.module';
+import { InvestmentModule } from './modules/investment/investment.module';
+import { WaterQualityModule } from './modules/water-quality/water-quality.module';
+import { ActivityLogModule } from './modules/activity-log/activity-log.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { ReportModule } from './modules/report/report.module';
+import { SeasonClosingModule } from './modules/season-closing/season-closing.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { MediaModule } from './modules/media/media.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { PlatformRolesGuard } from './modules/auth/guards/platform-roles.guard';
 
@@ -40,12 +57,24 @@ import { PlatformRolesGuard } from './modules/auth/guards/platform-roles.guard';
     HealthModule,
     AuthModule,
     UsersModule,
-    // Future feature modules register here, one per approved build step:
-    // MembersModule (ProjectMember/RBAC), ProjectModule, SeasonModule,
-    // FishModule, GrowthModule, FeedModule, VendorLedgerModule,
-    // MedicineModule, TreatmentModule, ExpenseModule, SalesModule,
-    // InvestmentModule, PartnerModule, WaterQualityModule,
-    // NotificationModule, ReportModule, DashboardModule, MediaModule
+    ProjectsModule,
+    SeasonModule,
+    ExpenseModule,
+    FishModule,
+    GrowthModule,
+    FeedModule,
+    MedicineModule,
+    StockReconciliationModule,
+    SalesModule,
+    InvestmentModule,
+    WaterQualityModule,
+    ActivityLogModule,
+    NotificationModule,
+    ReportModule,
+    SeasonClosingModule,
+    DashboardModule,
+    MediaModule,
+    // All 18 modules from the master spec are now registered.
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

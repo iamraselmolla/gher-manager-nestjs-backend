@@ -1,0 +1,13 @@
+{
+  "medicine_name_required": "Medicine name is required",
+  "medicine_category_required": "Medicine category is required",
+  "medicine_not_found": "Medicine not found",
+  "medicine_or_custom_required": "Select an existing medicine or provide a custom name",
+  "quantity_invalid": "Enter a valid quantity",
+  "unit_required": "Unit (e.g. kg, packet) is required",
+  "cost_invalid": "Enter a valid cost",
+  "purchase_date_required": "Date is required",
+  "stock_not_found": "Medicine stock entry not found",
+  "treatment_date_required": "Treatment date is required",
+  "treatment_not_found": "Treatment entry not found"
+}

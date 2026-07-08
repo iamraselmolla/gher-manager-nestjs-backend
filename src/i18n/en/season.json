@@ -1,0 +1,10 @@
+{
+  "year_required": "Season year is required",
+  "year_invalid": "Enter a valid year (e.g. 2025)",
+  "not_found": "Season not found",
+  "no_active_season": "This project has no active season",
+  "active_season_exists": "A season is already active — close it before starting a new one",
+  "year_already_exists": "A season for this year already exists",
+  "season_already_closed": "This season is already closed",
+  "season_closed_readonly": "This season is closed and cannot be edited"
+}

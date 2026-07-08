@@ -1,0 +1,8 @@
+{
+  "item_type_required": "আইটেমের ধরন (ফিড/মেডিসিন) আবশ্যক",
+  "item_key_required": "কোন আইটেম গণনা করা হচ্ছে তা উল্লেখ করুন",
+  "physical_quantity_invalid": "সঠিক পরিমাণ দিন",
+  "check_date_required": "গণনার তারিখ আবশ্যক",
+  "unit_required": "একক আবশ্যক",
+  "checkpoint_not_found": "স্টক চেক এন্ট্রিটি খুঁজে পাওয়া যায়নি"
+}

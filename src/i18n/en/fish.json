@@ -1,0 +1,10 @@
+{
+  "species_name_required": "Species name is required",
+  "species_category_required": "Species category is required",
+  "species_not_found": "Fish species not found",
+  "species_or_custom_required": "Select an existing species or provide a custom species name",
+  "quantity_invalid": "Enter a valid quantity",
+  "cost_invalid": "Enter a valid cost",
+  "stocked_date_required": "Stocking date is required",
+  "batch_not_found": "Stock entry not found"
+}

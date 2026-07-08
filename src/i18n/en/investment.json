@@ -1,0 +1,10 @@
+{
+  "share_percentage_invalid": "Enter a valid share percentage (0-100)",
+  "share_exceeds_100": "Total share cannot exceed 100% — at most {max}% is available right now",
+  "initial_investment_invalid": "Enter a valid initial investment amount",
+  "partner_not_found": "Partner not found",
+  "partner_already_exists": "This user is already a partner on this project",
+  "amount_invalid": "Enter a valid amount",
+  "date_required": "Date is required",
+  "no_active_season_for_partner_changes": "An active season is required to add or change partners"
+}

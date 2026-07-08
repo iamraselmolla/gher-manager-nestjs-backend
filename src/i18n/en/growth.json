@@ -1,0 +1,6 @@
+{
+  "check_date_required": "Check date is required",
+  "current_weight_invalid": "Enter a valid current weight",
+  "check_not_found": "Growth check entry not found",
+  "batch_not_found": "Stock batch not found"
+}
