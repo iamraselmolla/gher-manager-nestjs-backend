@@ -43,7 +43,7 @@ export class ProjectRolesGuard implements CanActivate {
     const i18n = I18nContext.current(context);
     const t = (key: string) => (i18n ? i18n.t(key) : key);
 
-    const projectId = request.params?.projectId;
+    const projectId = request.params.projectId as string;
     if (!projectId) {
       throw new BadRequestException(
         'Route is missing a :projectId param required by @ProjectRoles()',
