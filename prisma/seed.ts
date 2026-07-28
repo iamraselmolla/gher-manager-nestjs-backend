@@ -38,7 +38,7 @@ async function seedAdmin() {
   }
 
   const mobileNumber = process.env.SEED_ADMIN_MOBILE ?? '01944835365';
-  const password = process.env.SEED_ADMIN_PASSWORD ?? 'gher1234';
+  const password = process.env.SEED_ADMIN_PASSWORD ?? '12345678';
   const name = process.env.SEED_ADMIN_NAME ?? 'Super Admin';
 
   const passwordHash = await bcrypt.hash(password, 12);
